@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
-    <link rel="stylesheet" href="login.css" />
+    <link rel="stylesheet" href="login.css">
 </head>
 <body>
-    <div id="app"></div>
+    <div id="app">
+    </div>
 
     <!-- Vue.js ve Axios kütüphanelerinin entegrasyonu -->
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
@@ -31,67 +32,121 @@
                     }
 
                     // Axios ile backend'e POST isteği yapma
-                    axios.post('http://localhost/Vue/api.php', {
+                    axios.post('http://localhost/Vue/api.php?action=login', {
                         email: this.email,
                         password: this.password
                     })
                     .then(response => {
                         console.log(response.data);
-                        this.signInMessage = response.data.message;
+                        if (response.data.success) {
+                            this.signInMessage = "Login successful!";
+                            // Oturum anahtarını sakla ve süreyi belirle
+                            const sessionTimeoutSeconds = 5; // 5 saniye
+                            const expiryTime = new Date().getTime() + (sessionTimeoutSeconds * 1000); // Süre hesaplama
+                            localStorage.setItem('sessionToken', response.data.token); // Örnek: Oturum anahtarını sakla
+                            localStorage.setItem('sessionExpiry', expiryTime); // Süre bilgisini sakla
+
+                            // Başarılı giriş sonrası yönlendirme
+                            window.location.href = 'empty.html'; // Örnek: Kullanıcı panosu sayfası
+                        } else {
+                            this.signInMessage = "Invalid email or password.";
+                        }
                     })
                     .catch(error => {
                         console.error(error);
                         this.signInMessage = "An error occurred. Please try again.";
                     });
-                }
+                },
             },
             template: `
-            <div class="login-form">
+            <form class="login-form">
                 <label>E-Mail: </label>
                 <input v-model="email" placeholder="E-Mail"/>
                 <label>Password: </label>
                 <input v-model="password" type="password" placeholder="Password"/>
-                <button @click="signIn">SIGN IN</button>
+                <button @click.prevent="signIn">SIGN IN</button>
                 <p>{{ signInMessage }}</p>
-            </div>`
+            </form>`
         };
 
-        // 404 sayfası
+        // Kayıt formu component'i
+        const register = {
+            data: function() {
+                return {
+                    name: '',
+                    surname: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    signUpMessage: ''
+                };
+            },
+            methods: {
+                registerUser: function() {
+                    if (!this.name || !this.surname || !this.email || !this.password || !this.confirmPassword) {
+                        this.signUpMessage = "Please fill in all fields";
+                        return;
+                    }
+                    if (this.password !== this.confirmPassword) {
+                        this.signUpMessage = "Passwords do not match";
+                        return;
+                    }
+
+                    // Axios ile backend'e POST isteği yapma
+                    axios.post('http://localhost/Vue/api.php?action=register', {
+                        name: this.name,
+                        surname: this.surname,
+                        email: this.email,
+                        password: this.password
+                    })
+                    .then(response => {
+                        console.log(response.data);
+                        this.signUpMessage = response.data.message;
+                        if (response.data.success) {
+                            // Başarılı kayıt sonrası yönlendirme
+                            // Oturum anahtarını sakla ve süreyi belirle
+                            const sessionTimeoutSeconds = 5; // 5 saniye
+                            const expiryTime = new Date().getTime() + (sessionTimeoutSeconds * 1000); // Süre hesaplama
+                            localStorage.setItem('sessionToken', response.data.token); // Örnek: Oturum anahtarını sakla
+                            localStorage.setItem('sessionExpiry', expiryTime); // Süre bilgisini sakla
+                            window.location.href = 'empty.html'; // Örnek: Giriş sayfasına yönlendirme
+                        }
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        this.signUpMessage = "An error occurred. Please try again.";
+                    });
+                },           
+            },
+            template: `
+            <form class="login-form">
+                <label>Name: </label>
+                <input v-model="name" placeholder="Name"/>
+                <label>Surname: </label>
+                <input v-model="surname" placeholder="Surname"/>
+                <label>E-Mail: </label>
+                <input v-model="email" placeholder="E-Mail"/>
+                <label>Password: </label>
+                <input v-model="password" type="password" placeholder="Password"/>
+                <label>Confirm Password: </label>
+                <input v-model="confirmPassword" type="password" placeholder="Confirm Password"/>
+                <button @click.prevent="registerUser">REGISTER</button>
+                <p>{{ signUpMessage }}</p>
+            </form>`
+        };
+
+        // 404 bileşeni
         const fourOhFour = {
             template: `
             <div>
-                <p>Sorry URL Not Found : {{ url }}</p>
-            </div>
-            `,
-            data: function() {
-                return {
-                    url: window.location.hash
-                };
-            }
-        };
-
-        // İletişim formu sayfası
-        const contactUs = {
-            template: `
-            <div class="login-form">
-                <label class="lbl">Name: </label>
-                <input placeholder="Name"/>
-                <label class="lbl">Surname: </label>
-                <input placeholder="Surname"/>
-                <label class="lbl">E-Mail: </label>
-                <input placeholder="E-Mail"/>
-                <label class="lbl">Password: </label>
-                <input type="password" placeholder="Password"/>
-                <label class="lbl">Confirm Password: </label>
-                <input type="password" placeholder="Confirm Password"/>
-                <button>SIGN IN</button>
+                <!--<h1>404 - Page Not Found</h1>-->
             </div>`
         };
 
         // Vue yönlendirme işlemleri için routes
         const routes = {
-            '#/' : main,
-            '#/contact-us' : contactUs
+            '#/login' : main,
+            '#/register' : register
         };
 
         // Vue uygulaması
@@ -102,8 +157,9 @@
                 routes: routes
             },
             methods: {
-                navigate: function($event){
-                    this.currentPath = $event.target.hash;
+                navigate: function(path){ //$event
+                    this.currentPath = path;
+                    window.location.hash = path;
                 }
             },
             computed: {
@@ -111,20 +167,23 @@
                     return this.routes[this.currentPath] || fourOhFour;
                 }
             },
+            created: function() {
+                // Sayfa yüklendiğinde varsayılan olarak giriş sayfasına yönlendirme
+                if (!window.location.hash) {
+                    this.navigate('#/login');
+                }
+            },
             template: `
                 <div>
-                    <button id="log-in">
-                        <a href="#/" v-on:click="navigate">Main</a>
-                    </button>
-                    <button id="create-acc">
-                        <a href="#/contact-us" v-on:click="navigate">Contact Us</a>
-                    </button>    
+                    <button id="log-in" v-on:click="navigate('#/login')">SING IN</button>
+                    <button id="create-acc" v-on:click="navigate('#/register')">CREATE ACCOUNT</button>    
 
-                    <div v-bind:is="currentView">
-                    </div>    
+                    <component :is="currentView">
+                    </component>    
                 </div>
             `
         });
     </script>
 </body>
 </html>
+
